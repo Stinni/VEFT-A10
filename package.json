@@ -1,0 +1,21 @@
+{
+  "name": "punchy",
+  "version": "3.0.0",
+  "description": "Assignment 10",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "kristinnf13",
+  "license": "MIT",
+  "repository": "https://github.com/Stinni/VEFT-A10",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "express": "^4.14.0",
+    "mongodb": "^2.2.10",
+    "mongoose": "^4.6.4",
+    "node-uuid": "^1.4.7",
+    "nodemon": "^1.11.0"
+  },
+  "devDependencies": {}
+}
