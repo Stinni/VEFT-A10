@@ -34,6 +34,9 @@ const CompanySchema = new mongoose.Schema({
 		type: Number,
 		min: 2,
 		default: 10
+	},
+	description: {
+		type: String
 	}
 },{
 	versionKey: false
