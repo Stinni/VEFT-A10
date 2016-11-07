@@ -11,7 +11,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 /*
-POST /api/my/punches - 30%
+POST /api/my/punches
 Creates a new punch for the "current user" for a given company, the company id should be passed in via the request body.
 This endpoint is authenticated using the user token.
 Clients sends a request with the Authorization header value. That value is used to authenticate the user. A new document
@@ -24,7 +24,7 @@ Otherwise the server should return with a status code 201 and return the newly c
 */
 app.post("/", (req, res) => {
 	if(!req.headers.hasOwnProperty("authorization")) {
-		return res.status(401).send("Not authorization token included");
+		return res.status(401).send("No authorization token included!");
 	}
 	var authToken = req.headers.authorization;
 

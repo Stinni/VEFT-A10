@@ -6,10 +6,15 @@ const express = require("express");
 const ObjectId = require('mongoose').Types.ObjectId;
 const entities = require("./../entities/entities");
 const bodyParser = require("body-parser");
-//const uuid = require("node-uuid");
+const elasticsearch = require("elasticsearch");
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+const client = new elasticsearch.Client({
+	host: "localhost:9200",
+	log: "error"
+});
 
 const adminToken = "zeAdminRules";
 
