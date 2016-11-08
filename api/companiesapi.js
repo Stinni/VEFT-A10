@@ -43,7 +43,7 @@ app.post("/", (req, res) => {
 		return res.status(401).send("Not authorized!");
 	}
 
-	if(!req.is('application/json')) { // bodyparser.json 
+	if(!req.is('application/json')) { // I thought that app.use(bodyParser.json()) would take care of this...
 		return res.status(415).send("Json format expected!");
 	}
 
@@ -72,6 +72,7 @@ app.post("/", (req, res) => {
 
 	entities.Companies.findOne({"name": name}, (ferr, fdoc) => {
 		if(ferr) {
+			console.log(ferr); // Here a logger should be added
 			return res.status(500).send("An error occurred while fetching a company from the database.");
 		}
 		if(fdoc) {
@@ -79,6 +80,7 @@ app.post("/", (req, res) => {
 		}
 		entities.Companies.create({"name": name, "punchCount": pCount, "description": description}, (err, doc) => {
 			if(err) {
+				console.log(err); // Here a logger should be added
 				if(err.name === "ValidationError") {
 					return res.status(500).send("ValidationError - Probably because of invalid value for punchCount. It can't be lower than 2!");
 				}
@@ -99,7 +101,7 @@ app.post("/", (req, res) => {
 				"body": data
 			}, (eerr, edoc) => {
 				if(eerr) {
-					console.log(eerr);
+					console.log(eerr); // Here a logger should be added
 					return res.status(500).send("Something went wrong with adding an index to elasticsearch");
 				}
 				return res.status(201).json({id: doc._id});
@@ -113,9 +115,7 @@ GET /companies[?page=N&max=N&search=Q] - 60%
 Endpoint for fetching list of companies that have been added to Punchy. The companies should be
 fetched from ElasticSearch (note: not from MongoDB!). This endpoint should return a list of Json
 objects with the following fields:
-id
-name
-Other fields should be excluded.
+id, name - Other fields should be excluded.
 
 This endpoint accepts three request parameters, page, max and search. If they are not presented
 they should be defaulted by 0, 20 and "" respectively. The page and max parameters should control
@@ -125,20 +125,63 @@ should allow the client to filter the list based on the company name, or the com
 The list should be ordered alphabetically by the company name.
 */
 app.get("/", (req, res) => {
-	entities.Companies.find((err, docs) => {
+	var page = req.query.page || 0;
+	var size = req.query.max || 20;
+	var search = req.query.search || "*";
+
+	client.indices.exists({
+		"index": "companies"
+	}, (err, exists) => {
 		if(err) {
 			console.log(err); // Here a logger should be added
-			return res.status(500).send("An error occurred while fetching companies from the database.");
+			return res.status(500).send("Something went wrong while checking for indices in elasticsearch");
 		}
-		res.json(docs);
+		if(!exists) {
+			return res.status(404).send("The index doesn't exist");
+		}
+
+		client.search({
+			"index": "companies",
+			"type": "company",
+			"size": size,
+			"from": page * size, // count from 0 and we use 'p*s' because, f.ex. if there're 2 documents on a page
+								 // and we want page number 2, we'd start with document nr. 4
+			"body": {
+				"_source": [ "company_id", "name" ],
+				"query": {
+					"bool": {
+						"should": [
+							{ "wildcard": { "name": search } },
+							{ "wildcard": { "description": search } }
+						]
+					}
+				}
+			}
+		}, (serr, sdocs) => {
+			if(serr) {
+				console.log(serr); // Here a logger should be added
+				return res.status(500).send("Something went wrong while fetching companies from elasticsearch");
+			}
+			if(!sdocs.hits.hits.length) {
+				return res.status(404).send("No companies were found");
+			}
+
+			var list = sdocs.hits.hits.map((d) => d._source);
+			list.sort((a, b) => {
+				if (a.name < b.name) return -1;
+				if (a.name > b.name) return 1;
+				return 0;
+			});
+			res.json(list);
+		});
 	});
 });
 
 /*
-GET /api/companies/:id - 10%
-Fetches a given company that has been added to MongoDB by id. This endpoints should return a single JSON document if found.
-If no company is found by the id then this endpoint should return response with status code 404.
-No authentication is needed for this endpoint.
+GET /companies/:id - 20%
+Fetch a given company by id from Mongodb. If no company we return an empty response with status code 404.
+If a given company is found we return a Json object with the following fields.
+id, name, punchCount, description - Other fields should be omitted from the response.
 */
 app.get("/:id", (req, res) => {
 	var id = req.params.id;
@@ -151,9 +194,9 @@ app.get("/:id", (req, res) => {
 			return res.status(500).send("An error occurred while fetching a company from the database.");
 		}
 		if(doc === null) {
-			return res.status(404).send("No company found with id: " + id);
+			return res.status(404).send();
 		}
-		res.json(doc);
+		res.json({id: doc._id, name: doc.name, punchCount: doc.punchCount, description: doc.description});
 	});
 });
 
